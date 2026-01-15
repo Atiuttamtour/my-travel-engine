@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Unique Travel App</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { text-align: center; color: #333; }
+        .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .price { font-size: 1.5em; font-weight: bold; color: #2ecc71; }
+        .airline { font-size: 1.2em; font-weight: bold; }
+        button { display: block; width: 100%; padding: 15px; background: #007bff; color: white; border: none; font-size: 1.2em; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✈️ Flight Search Engine</h1>
+    <button onclick="findFlights()">Find Flights (London to NYC)</button>
+    <div id="results-area"></div>
+</div>
+
+<script>
+    async function findFlights() {
+        const resultsDiv = document.getElementById('results-area');
+        resultsDiv.innerHTML = '<p style="text-align:center">Scanning the skies...</p>';
+
+        try {
+            // This calls YOUR backend engine
+            const response = await fetch('/search-flight');
+            const offers = await response.json();
+
+            resultsDiv.innerHTML = ''; // Clear loading message
+
+            // Loop through each flight found
+            offers.forEach(offer => {
+                const airlineName = offer.owner.name;
+                const price = offer.total_amount + " " + offer.total_currency;
+                
+                // Create a card for each flight
+                const card = `
+                    <div class="card">
+                        <div>
+                            <div class="airline">${airlineName}</div>
+                            <div class="route">LHR ➝ JFK</div>
+                        </div>
+                        <div class="price">${price}</div>
+                    </div>
+                `;
+                resultsDiv.innerHTML += card;
+            });
+
+        } catch (error) {
+            resultsDiv.innerHTML = '<p style="color:red">Error fetching flights. Check console.</p>';
+        }
+    }
+</script>
+
+</body>
+</html>
