@@ -1,38 +1,81 @@
 import React, { useState } from 'react';
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
+import { 
+  Text, 
+  View, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator, 
+  SafeAreaView, 
+  StatusBar, 
+  Modal, 
+  Alert 
+} from 'react-native';
 
 export default function HomeScreen() {
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState(null);
 
-  // ⚠️ TEMPORARY: We will replace this with your Render URL in the next step
-  const API_URL = 'http://172.24.183.87:3000/search-flight'; 
+  // 🟢 I have pre-filled your Render URL here:
+  const API_URL = 'https://my-travel-engine-xk2s.onrender.com/search-flight'; 
+
+  // 💰 Your Commission Settings (10% Markup)
+  const COMMISSION_PERCENT = 0.10; 
 
   async function searchFlights() {
+    console.log("Button Pressed. Searching...");
     setLoading(true);
-    setFlights([]); // Clear old results
+    setFlights([]); 
+    
     try {
+      // 1. Fetch data from your Render Engine
       const response = await fetch(API_URL);
+      
+      // 2. Check if the server replied correctly
+      if (!response.ok) {
+        throw new Error(`Server Error: ${response.status}`);
+      }
+
+      // 3. Convert to JSON
       const data = await response.json();
+      console.log("Flights Found:", data.length);
       setFlights(data);
+
     } catch (error) {
-      alert("Still connecting... Next step: Deploy to Render!");
+      console.error(error);
+      Alert.alert("Connection Error", "Could not connect to Render. Check your internet or Render status.");
     } finally {
       setLoading(false);
     }
   }
 
+  // Helper to calculate your profit
+  const getPrice = (priceAmount) => {
+    const original = parseFloat(priceAmount);
+    if (isNaN(original)) return { original: "0", profit: "0", final: "0" };
+
+    const myCommission = original * COMMISSION_PERCENT;
+    const finalPrice = original + myCommission;
+    
+    return {
+      original: original.toFixed(2),
+      profit: myCommission.toFixed(2),
+      final: finalPrice.toFixed(2)
+    };
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* HEADER SECTION */}
+      {/* --- HEADER --- */}
       <View style={styles.header}>
         <Text style={styles.logo}>SKYLUXE</Text>
-        <Text style={styles.tagline}>Premium Travel, Wholesale Prices</Text>
+        <Text style={styles.tagline}>Wholesale Flights. Premium Service.</Text>
       </View>
 
-      {/* SEARCH SECTION */}
+      {/* --- SEARCH BOX --- */}
       <View style={styles.searchBox}>
         <View style={styles.routeContainer}>
           <Text style={styles.airportCode}>LHR</Text>
@@ -43,79 +86,126 @@ export default function HomeScreen() {
         
         <TouchableOpacity style={styles.searchButton} onPress={searchFlights} activeOpacity={0.8}>
           <Text style={styles.searchButtonText}>
-            {loading ? "Searching Best Fares..." : "SEARCH FLIGHTS"}
+            {loading ? "Searching..." : "FIND FLIGHTS"}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* RESULTS LIST */}
+      {/* --- RESULTS LIST --- */}
       <ScrollView contentContainerStyle={styles.resultsArea}>
-        {loading && <ActivityIndicator size="large" color="#0047AB" style={{marginTop: 40}} />}
+        {loading && <ActivityIndicator size="large" color="#0047AB" style={{marginTop: 20}} />}
         
-        {flights.map((flight, index) => (
-          <View key={index} style={styles.flightCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.airlineName}>{flight.owner.name}</Text>
-              <View style={styles.tag}><Text style={styles.tagText}>Direct</Text></View>
-            </View>
-            
-            <View style={styles.cardBody}>
-              <View>
-                <Text style={styles.time}>10:00 AM</Text>
-                <Text style={styles.city}>London</Text>
+        {flights.map((flight, index) => {
+          const prices = getPrice(flight.total_amount);
+          
+          return (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.flightCard} 
+              onPress={() => setSelectedFlight(flight)}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.airlineName}>{flight.owner.name}</Text>
+                <Text style={styles.price}>${prices.final}</Text>
               </View>
-              <Text style={styles.duration}>7h 50m</Text>
-              <View>
-                <Text style={styles.time}>01:50 PM</Text>
-                <Text style={styles.city}>New York</Text>
+
+              <View style={styles.cardBody}>
+                <Text style={styles.route}>London (LHR) ➔ NYC (JFK)</Text>
+                <Text style={styles.subText}>Tap for Profit Details</Text>
               </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.cardFooter}>
-              <Text style={styles.priceLabel}>Total Price</Text>
-              <Text style={styles.price}>
-                {flight.total_currency} {flight.total_amount}
-              </Text>
-            </View>
-          </View>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
+
+      {/* --- POPUP MODAL (DETAILS) --- */}
+      <Modal visible={!!selectedFlight} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            
+            <Text style={styles.modalTitle}>Flight Breakdown</Text>
+            
+            {selectedFlight && (
+              <View>
+                <Text style={styles.airlineLarge}>{selectedFlight.owner.name}</Text>
+                
+                {/* YOUR PROFIT SECTION */}
+                <View style={styles.profitBox}>
+                  <Text style={styles.boxTitle}>BUSINESS CALCULATOR</Text>
+                  
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Airline Cost:</Text>
+                    <Text style={styles.value}>${getPrice(selectedFlight.total_amount).original}</Text>
+                  </View>
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Your Commission (10%):</Text>
+                    <Text style={styles.profitValue}>+${getPrice(selectedFlight.total_amount).profit}</Text>
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.row}>
+                    <Text style={styles.totalLabel}>Customer Pays:</Text>
+                    <Text style={styles.totalValue}>${getPrice(selectedFlight.total_amount).final}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={() => setSelectedFlight(null)}
+                >
+                  <Text style={styles.closeButtonText}>Close Window</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
-  header: { backgroundColor: '#0047AB', padding: 25, paddingTop: 50, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  logo: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: 1 },
-  tagline: { color: '#82b1ff', fontSize: 14, marginTop: 5 },
+  container: { flex: 1, backgroundColor: '#f4f6f8' },
+  header: { backgroundColor: '#0047AB', padding: 25, paddingTop: 50, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  logo: { fontSize: 28, fontWeight: '900', color: '#fff' },
+  tagline: { color: '#bdc3c7', fontSize: 14, marginTop: 5 },
   
-  searchBox: { backgroundColor: '#fff', marginHorizontal: 20, marginTop: -30, padding: 20, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
-  routeContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  searchBox: { backgroundColor: '#fff', margin: 20, marginTop: -25, padding: 20, borderRadius: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
+  routeContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   airportCode: { fontSize: 24, fontWeight: 'bold', color: '#333' },
   arrow: { fontSize: 20, color: '#0047AB' },
-  date: { textAlign: 'center', color: '#666', marginBottom: 20 },
-  
-  searchButton: { backgroundColor: '#0047AB', padding: 16, borderRadius: 12, alignItems: 'center' },
-  searchButtonText: { color: 'fff', fontWeight: 'bold', fontSize: 16 },
+  date: { textAlign: 'center', color: '#7f8c8d', marginBottom: 15 },
+  searchButton: { backgroundColor: '#0047AB', padding: 15, borderRadius: 10, alignItems: 'center' },
+  searchButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  resultsArea: { padding: 20, paddingBottom: 50 },
-  flightCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 15, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  airlineName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  tag: { backgroundColor: '#e3f2fd', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  tagText: { color: '#0047AB', fontSize: 12, fontWeight: 'bold' },
+  resultsArea: { padding: 20 },
+  flightCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  airlineName: { fontSize: 18, fontWeight: 'bold', color: '#2c3e50' },
+  price: { fontSize: 20, fontWeight: 'bold', color: '#27ae60' },
+  cardBody: { flexDirection: 'row', justifyContent: 'space-between' },
+  route: { color: '#7f8c8d', fontSize: 14 },
+  subText: { color: '#0047AB', fontSize: 12, fontWeight: '600' },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', padding: 25, borderRadius: 20, elevation: 5 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
+  airlineLarge: { fontSize: 18, textAlign: 'center', color: '#0047AB', marginBottom: 20, fontWeight: 'bold' },
   
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  time: { fontSize: 18, fontWeight: '600', color: '#222' },
-  city: { color: '#888', fontSize: 12 },
-  duration: { color: '#ccc', fontWeight: 'bold' },
-  
-  divider: { height: 1, backgroundColor: '#eee', marginBottom: 15 },
-  
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  priceLabel: { color: '#888', fontSize: 14 },
-  price: { fontSize: 24, fontWeight: 'bold', color: '#2ecc71' }
+  profitBox: { backgroundColor: '#f8f9fa', padding: 15, borderRadius: 10, marginBottom: 20, borderWidth: 1, borderColor: '#e1e4e8' },
+  boxTitle: { fontSize: 12, fontWeight: 'bold', color: '#95a5a6', marginBottom: 10, textAlign: 'center' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  label: { color: '#34495e' },
+  value: { fontWeight: 'bold' },
+  profitValue: { color: '#27ae60', fontWeight: 'bold' },
+  divider: { height: 1, backgroundColor: '#ddd', marginVertical: 8 },
+  totalLabel: { fontWeight: 'bold', fontSize: 16 },
+  totalValue: { fontWeight: 'bold', fontSize: 18, color: '#27ae60' },
+
+  closeButton: { backgroundColor: '#ecf0f1', padding: 15, borderRadius: 10, alignItems: 'center' },
+  closeButtonText: { color: '#7f8c8d', fontWeight: 'bold' }
 });
