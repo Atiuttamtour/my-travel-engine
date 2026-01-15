@@ -9,7 +9,8 @@ import {
   SafeAreaView, 
   StatusBar, 
   Modal, 
-  Alert 
+  Alert, 
+  TextInput // 🟢 Added this to allow typing
 } from 'react-native';
 
 export default function HomeScreen() {
@@ -17,34 +18,39 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(null);
 
-  // 🟢 I have pre-filled your Render URL here:
-  const API_URL = 'https://my-travel-engine-xk2s.onrender.com/search-flight'; 
+  // 🟢 NEW: State to store what you type
+  const [origin, setOrigin] = useState('DEL');       // Default Starting Point
+  const [destination, setDestination] = useState('DXB'); // Default Destination
+  const [date, setDate] = useState('2026-06-25');    // Default Date
 
-  // 💰 Your Commission Settings (10% Markup)
+  // 🔴 IMPORTANT: Your Render Engine URL
+  const BASE_URL = 'https://my-travel-engine-xk2s.onrender.com/search-flight'; 
+
+  // 💰 Your 10% Profit Setting
   const COMMISSION_PERCENT = 0.10; 
 
   async function searchFlights() {
-    console.log("Button Pressed. Searching...");
+    console.log(`Searching: ${origin} to ${destination} on ${date}`);
     setLoading(true);
     setFlights([]); 
     
     try {
-      // 1. Fetch data from your Render Engine
-      const response = await fetch(API_URL);
+      // 🟢 DYNAMIC LOGIC: We attach your typed inputs to the URL
+      const dynamicUrl = `${BASE_URL}?origin=${origin}&destination=${destination}&date=${date}`;
       
-      // 2. Check if the server replied correctly
+      const response = await fetch(dynamicUrl);
+      
+      // Check if server found nothing or crashed
       if (!response.ok) {
         throw new Error(`Server Error: ${response.status}`);
       }
 
-      // 3. Convert to JSON
       const data = await response.json();
-      console.log("Flights Found:", data.length);
       setFlights(data);
 
     } catch (error) {
       console.error(error);
-      Alert.alert("Connection Error", "Could not connect to Render. Check your internet or Render status.");
+      Alert.alert("Search Failed", "Could not find flights. Ensure you used correct 3-letter codes (e.g. DEL, LHR, JFK).");
     } finally {
       setLoading(false);
     }
@@ -72,21 +78,51 @@ export default function HomeScreen() {
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <Text style={styles.logo}>SKYLUXE</Text>
-        <Text style={styles.tagline}>Wholesale Flights. Premium Service.</Text>
+        <Text style={styles.tagline}>Global Wholesale Flights</Text>
       </View>
 
-      {/* --- SEARCH BOX --- */}
+      {/* --- 🟢 NEW SEARCH BOX WITH INPUTS --- */}
       <View style={styles.searchBox}>
-        <View style={styles.routeContainer}>
-          <Text style={styles.airportCode}>LHR</Text>
+        
+        {/* ROW 1: FROM & TO */}
+        <View style={styles.rowInputs}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>FROM (Code)</Text>
+            <TextInput 
+              style={styles.input} 
+              value={origin} 
+              onChangeText={text => setOrigin(text.toUpperCase())} 
+              placeholder="DEL" 
+              maxLength={3}
+            />
+          </View>
+
           <Text style={styles.arrow}>✈</Text>
-          <Text style={styles.airportCode}>JFK</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>TO (Code)</Text>
+            <TextInput 
+              style={styles.input} 
+              value={destination} 
+              onChangeText={text => setDestination(text.toUpperCase())} 
+              placeholder="DXB" 
+              maxLength={3}
+            />
+          </View>
         </View>
-        <Text style={styles.date}>June 20, 2026</Text>
+
+        {/* ROW 2: DATE */}
+        <Text style={styles.inputLabel}>DATE (YYYY-MM-DD)</Text>
+        <TextInput 
+          style={styles.input} 
+          value={date} 
+          onChangeText={setDate} 
+          placeholder="2026-06-25" 
+        />
         
         <TouchableOpacity style={styles.searchButton} onPress={searchFlights} activeOpacity={0.8}>
           <Text style={styles.searchButtonText}>
-            {loading ? "Searching..." : "FIND FLIGHTS"}
+            {loading ? "SEARCHING..." : "FIND FLIGHTS"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -95,6 +131,10 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.resultsArea}>
         {loading && <ActivityIndicator size="large" color="#0047AB" style={{marginTop: 20}} />}
         
+        {flights.length === 0 && !loading && (
+          <Text style={styles.emptyText}>Enter codes (e.g. DEL to DXB) and search.</Text>
+        )}
+
         {flights.map((flight, index) => {
           const prices = getPrice(flight.total_amount);
           
@@ -110,8 +150,8 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.cardBody}>
-                <Text style={styles.route}>London (LHR) ➔ NYC (JFK)</Text>
-                <Text style={styles.subText}>Tap for Profit Details</Text>
+                <Text style={styles.route}>{origin} ➔ {destination}</Text>
+                <Text style={styles.subText}>Tap for Profit</Text>
               </View>
             </TouchableOpacity>
           );
@@ -173,15 +213,19 @@ const styles = StyleSheet.create({
   logo: { fontSize: 28, fontWeight: '900', color: '#fff' },
   tagline: { color: '#bdc3c7', fontSize: 14, marginTop: 5 },
   
+  // NEW INPUT STYLES
   searchBox: { backgroundColor: '#fff', margin: 20, marginTop: -25, padding: 20, borderRadius: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
-  routeContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  airportCode: { fontSize: 24, fontWeight: 'bold', color: '#333' },
-  arrow: { fontSize: 20, color: '#0047AB' },
-  date: { textAlign: 'center', color: '#7f8c8d', marginBottom: 15 },
+  rowInputs: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  inputGroup: { width: '40%' },
+  inputLabel: { fontSize: 12, fontWeight: 'bold', color: '#666', marginBottom: 5 },
+  input: { backgroundColor: '#f0f2f5', padding: 12, borderRadius: 8, marginBottom: 15, fontSize: 16, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+  arrow: { fontSize: 20, color: '#0047AB', marginTop: 15 },
+  
   searchButton: { backgroundColor: '#0047AB', padding: 15, borderRadius: 10, alignItems: 'center' },
   searchButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
   resultsArea: { padding: 20 },
+  emptyText: { textAlign: 'center', color: '#999', marginTop: 20 },
   flightCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   airlineName: { fontSize: 18, fontWeight: 'bold', color: '#2c3e50' },
